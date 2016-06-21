@@ -1,15 +1,8 @@
----
-title: "Assessing Health and Economic Impact of Weather Events"
-author: "Wolfgang Brandl"
-date: "20 Juni 2016"
-output: 
-  html_document:
-    keep_md: true
----
+# Assessing Health and Economic Impact of Weather Events
+Wolfgang Brandl  
+20 Juni 2016  
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+
 ## Synopsis of Study Results
 
 This study U.S. National Oceanic and Atmospheric Administration's
@@ -32,16 +25,36 @@ damage.
   1. Across the United States, which types of events have the greatest economic consequences?
 
 ## Notes about the environment used
-```{r}
-sessionInfo()
 
+```r
+sessionInfo()
+```
+
+```
+## R version 3.3.0 (2016-05-03)
+## Platform: x86_64-w64-mingw32/x64 (64-bit)
+## Running under: Windows 7 x64 (build 7601) Service Pack 1
+## 
+## locale:
+## [1] LC_COLLATE=German_Austria.1252  LC_CTYPE=German_Austria.1252   
+## [3] LC_MONETARY=German_Austria.1252 LC_NUMERIC=C                   
+## [5] LC_TIME=German_Austria.1252    
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## loaded via a namespace (and not attached):
+##  [1] magrittr_1.5    formatR_1.4     tools_3.3.0     htmltools_0.3.5
+##  [5] yaml_2.1.13     Rcpp_0.12.5     stringi_1.1.1   rmarkdown_0.9.6
+##  [9] knitr_1.13      stringr_1.0.0   digest_0.6.9    evaluate_0.9
 ```
 
 The full project may be found on Github at `https://github.com/gregoryg/05-reproducible-research-assignment-2`
 
 ## Data Processing
 ### Set libraries used in this analysis
-```{r loadLibraries, warning=FALSE, results="hide", message=FALSE}
+
+```r
 library(stringr)
 library(lubridate)
 library(sqldf)
@@ -50,7 +63,8 @@ library(reshape2)
 library(gridExtra)
 ```
 ## Set Work Area 
-```{r}
+
+```r
 wdroot <- file.path ("D:","Users","wbrandl","Coursera","ReproducableResearchCourseProject2")
 setwd (wdroot)
 if (!file.exists("data")){
@@ -63,7 +77,8 @@ setwd (wd)
 ##Download and Loading and preprocessing the data
 ##### 1. Download data file
 ### Loading the data
-```{r loadData}
+
+```r
 url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
 zipfile <- "StormData.csv.bz2"
 cleanfile <- "StormData.clean"
@@ -101,7 +116,8 @@ for exponent:
   * M million (x1,000,000)
   * B billion (x1,000,000,000)
 
-```{r addUSDcol}
+
+```r
 if(!Loaded) {
     calcUSD <- function(dmg, dmgexp) dmg * switch(toupper(dmgexp), H=100, K=1000, M=1000000, B=1000000000, 1)
 
@@ -112,7 +128,8 @@ if(!Loaded) {
 
 To assist in date analysis, we will convert dates to POSIXct format
 
-```{r addPOSIXdate}
+
+```r
 if(!Loaded)
     d$BEGIN_UTC <- mdy(str_extract(d$BGN_DATE, "[^ ]+"))
 ```
@@ -126,7 +143,8 @@ going to attempt to categorize the most impactful events by looking
 for common words and abbreviations in a relative handful of weather
 categories.
 
-```{r addWeatherCategory} 
+
+```r
 if (!Loaded) {
     generateEvent <- function(evt) {
         evt <- tolower(evt)
@@ -152,7 +170,8 @@ For purposes of this study, USA is defined as the 50 states in the
 continental US, plus District of Columbia, Hawaii and
 Alaska. territories, protectorates, and military regions are excluded
 
-```{r addUSAcol} 
+
+```r
 if (!Loaded)
     d$isUSA <- mapply( function(st) st %in% state.abb, d$STATE )
 ```
@@ -161,7 +180,8 @@ In the interest of performance, we will save the data frame as an R
 data set (`.RDS` file).  After reading, immediately subset the data to
 only those records originating in the US.
 
-```{r saveRDS}
+
+```r
 if (!Loaded) {
     saveRDS(d, file=cleanfile)
     d <- readRDS(cleanfile)
@@ -176,7 +196,8 @@ d <- d[d$isUSA == TRUE,]
 
 Refer to the result of the query below, which groups US mortalities and injuries by weather category.
 
-```{r findHarmfulEvents, message=FALSE}
+
+```r
 harm <- sqldf("select sum(FATALITIES) as deaths, sum(INJURIES) as injuries, weatherCategory,count(*) as sumrecs from d group by weatherCategory ")
 
 harm$weatherCategory <- factor(harm$weatherCategory, levels=harm[order(harm$injuries), "weatherCategory"])
@@ -189,6 +210,8 @@ plot2 <- ggplot(hdat, aes(x=weatherCategory, y=pctPerEvent, fill=variable)) + ge
 grid.arrange(plot1, plot2)
 ```
 
+![](ReproducableResearchCourseProject2_files/figure-html/findHarmfulEvents-1.png)<!-- -->
+
 Wind events -- including tornadoes and hurricanes -- have the highest
 impact on health in terms of absolute numbers reported.  Heat events
 -- including fires and heat waves -- show the highest percentage of
@@ -196,7 +219,8 @@ casualties per event.
 
 ### Question 2: Across the United States, which types of events have the greatest economic consequences?
 
-```{r}
+
+```r
 crop <- sqldf("select sum(pdmgUSD) as propertyDmgUSD, sum(cdmgUSD) as cropDmgUSD, count(*) as sumrecs, weatherCategory from d group by weatherCategory")
 crop <- sqldf("select *, propertyDmgUSD + cropDmgUSD as totalCost from crop")
 ## create long form on crop vs property damage columns
@@ -205,6 +229,8 @@ cdat <- sqldf("select *, (value/sumrecs) as costPerEvent from cdat")
 plot3 <- ggplot(cdat, aes(x=weatherCategory, y=value/1000000000, fill=variable)) + geom_bar(stat="identity") + coord_flip() + ggtitle("Damages per Weather Type") + xlab("Weather type") + ylab("Damages in Billions USD")
 grid.arrange(plot3)
 ```
+
+![](ReproducableResearchCourseProject2_files/figure-html/unnamed-chunk-3-1.png)<!-- -->
 
 Rain and wind events are the most costly weather types, both in terms
 of property and damage to crops.  There is a very significant crop
@@ -216,7 +242,8 @@ used in this study.
 ### Utility functions
 Some functions not used in the published analysis that may be useful
 
-```{r}
+
+```r
 ## timeconv() is used to take inconsistent times and convert them to a standard format
 ## times will either be 24-hour HHMM ("1330") or 12-hour strings with AM/PM ("01:30:00 PM")
 ## functions returns format of 24-hour HH:MM:SS ("13:30:00")
@@ -231,5 +258,4 @@ timeconv <- function(x) {
             substr(x,3,nchar(x)-3))
     }
 }
-
 ```
